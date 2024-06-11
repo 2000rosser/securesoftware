@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+
+<head th:insert="fragments/head :: head"></head>
+
+<body class="index-page">
+    <div th:replace="fragments/navbar:: navbar"></div>
+
+    <div class="wrapper">
+        <section class="section section-hero section-shaped">
+            <div class="shape shape-style-1 shape-default">
+                <span class="span-150"></span>
+                <span class="span-50"></span>
+                <span class="span-50"></span>
+                <span class="span-75"></span>
+                <span class="span-100"></span>
+                <span class="span-75"></span>
+                <span class="span-50"></span>
+                <span class="span-100"></span>
+                <span class="span-50"></span>
+                <span class="span-100"></span>
+            </div>
+            <div class="page-header">
+                <div class="container shape-container d-flex align-items-center py-6">
+                    <div class="col-lg-7 mx-auto">
+                        <div th:replace="fragments/alert :: alert"></div>
+                        <img src="/images/title.svg" style="width: 100%" class="img-fluid mt-2" />
+                        <p class="lead text-white text-center">Set up an appointment to get your COVID-19
+                            vaccine!</p>
+
+                        <form id="appointment-form" class="mt-5 mx-auto" action="make-appointment" method="POST">
+                            <span class="text-white">Choose a vaccination center:</span>
+                            <select class="form-control mt-1 mb-3 border-0" name="center_id" id="select-center">
+                            </select>
+                            <span class="text-white">Select the perfect day:</span>
+                            <select class="form-control mt-1 mb-3 border-0" name="date" id="select-date">
+                            </select>
+                            <span class="text-white">Pick the right time slot:</span>
+                            <select class="form-control mt-1 mb-3 border-0" name="time" id="select-time">
+                            </select>
+
+                            <div class="text-center mt-4">
+                                <button type="submit" class="btn btn-neutral-outline btn-success">
+                                    <span class="btn-inner--icon"><i class="fa fa-calendar mr-2"></i></span>
+                                    Make appointment
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <footer th:insert="fragments/footer :: footer"></footer>
+    </div>
+
+    <script type="text/javascript">
+        $(function () {
+            $(".birth-datepicker").datepicker({
+                format: "dd/mm/yyyy",
+                endDate: "-18y",
+            });
+
+            $(".vaccine-datepicker").datepicker({
+                format: "dd/mm/yyyy",
+                endDate: "-18y",
+            });
+
+            $('[data-toggle="tooltip"]').tooltip();
+        });
+    </script>
+
+
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+        const appSlots = /*[[${appSlots}]]*/ null;
+        /*]]>*/
+
+        const vaxCenters = new Set();
+
+        const selectCenter = document.getElementById('select-center');
+        const selectDate = document.getElementById('select-date');
+        const selectTime = document.getElementById('select-time');
+
+        for (let i = 0; i < appSlots.length; i++) {
+            const vaccineCenter = appSlots[i].vaccineCentre;
+            if (!vaxCenters.has(vaccineCenter.id)) {
+                vaxCenters.add(vaccineCenter.id);
+
+                const opt = document.createElement('option');
+                opt.value = vaccineCenter.id;
+                opt.innerHTML = vaccineCenter.name;
+                selectCenter.appendChild(opt);
+            }
+        }
+
+        selectCenter.addEventListener('change', (e) => {
+            applyDateSlots(e.target.value);
+        });
+
+        selectDate.addEventListener('change', (e) => {
+            applyTimeSlots(e.target.value);
+        });
+
+        function applyDateSlots(centerId) {
+            selectDate.innerHTML = '';
+            const centerAppSlots = appSlots.filter((slot) => slot.vaccineCentre.id == centerId);
+            const centerDates = [...new Set(centerAppSlots.map((slot) => slot.date))];
+
+            for (const date of centerDates) {
+                const opt = document.createElement('option');
+                opt.value = date;
+                opt.innerHTML = date;
+                selectDate.appendChild(opt);
+
+                // const endDate = new Date(new Date(slot.date + ' ' + slot.startTime).getTime() + 15 * 60000);
+
+                // const opt2 = document.createElement('option');
+                // opt2.value = slot.startTime;
+                // opt2.innerHTML = slot.startTime.substring(0, slot.startTime.length - 3) + ' - ' + endDate.getHours() + ':' + endDate.getMinutes();
+                // selectTime.appendChild(opt2);
+            }
+        }
+
+        function applyTimeSlots(date) {
+            selectTime.innerHTML = '';
+            const centerId = selectCenter.value;
+            const timeSlots = appSlots.filter((slot) => slot.vaccineCentre.id == centerId && slot.date == date);
+
+            for (const slot of timeSlots) {
+                const endDate = new Date(new Date(slot.date + ' ' + slot.startTime).getTime() + 15 * 60000);
+                console.log(endDate.getTime());
+                const opt2 = document.createElement('option');
+                opt2.value = slot.startTime;
+                opt2.innerHTML = slot.startTime.substring(0, slot.startTime.length - 3) + ' - ' + endDate.getHours() + ':' + (endDate.getMinutes() || '00');
+                selectTime.appendChild(opt2);
+            }
+        }
+
+        applyDateSlots(selectCenter.value);
+        applyTimeSlots(selectDate.value);
+    </script>
+</body>
+
+</html>

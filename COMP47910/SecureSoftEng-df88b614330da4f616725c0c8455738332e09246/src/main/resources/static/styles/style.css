@@ -1,0 +1,60 @@
+
+/* Common */
+.navbar-brand img {
+    height: 40px !important;
+}
+
+.section-hero {
+    min-height: 100vh !important;
+}
+
+.input-group-addon .input-group-text{
+    border-right: 0;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    height: 100%;
+}
+
+.form-group .form-control:focus {
+    border-color: #5e72e4 !important;
+    color: #5e72e4;
+}
+
+.form-group .form-control:focus::placeholder {
+    transition: 0.3s;
+    color: #5e72e4;
+}
+
+.user-widget img {
+    border: 2px solid white;
+}
+
+.navbar-background {
+    width: 100%;
+    height: 85px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    background: #5e72e4;
+}
+
+.navbar-collapse .btn {
+    margin-top: 0.75rem;
+}
+
+.td-actions .btn-icon {
+    width: 29px;
+    height: 29px;
+}
+
+.card-profile-image img {
+    width: 75%;
+}
+
+/* Home page */
+#appointment-form {
+    max-width: 300px;
+    width: 100%;
+}
+
+/* Forum page */
