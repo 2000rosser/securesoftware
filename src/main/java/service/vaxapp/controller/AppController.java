@@ -309,6 +309,15 @@ public class AppController {
         if (stringId == null)
             return "404";
 
+        //CWE-639
+        if (!userSession.isLoggedIn()) {
+            return "redirect:/login";
+        }
+
+        if (!userSession.getUserId().equals(Integer.valueOf(stringId))) {
+            return "401";
+        }
+
         try {
             Integer id = Integer.valueOf(stringId);
             Optional<User> user = userRepository.findById(id);
@@ -401,6 +410,9 @@ public class AppController {
 
     @PostMapping(value = "/find-user")
     public String findUser(@RequestParam Map<String, String> body, Model model) {
+        // CWE-306
+        if (!userSession.isLoggedIn() || !userSession.getUser().isAdmin())
+            return "redirect:/login";
         String input = body.get("input");
 
         User user = userRepository.findByPPSorName(input);

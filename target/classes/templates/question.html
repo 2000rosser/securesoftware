@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+
+<head th:insert="fragments/head :: head"> </head>
+
+<body class="index-page">
+    <div th:replace="fragments/navbar:: navbar"></div>
+
+    <div class="wrapper">
+        <div class="section section-shaped">
+            <div class="navbar-background"></div>
+            <div class="page-header">
+                <div class="container py-5 px-4">
+                    <div th:replace="fragments/alert :: alert"></div>
+                    <h4 class="question-title mb-2 mt-5" th:text="${question.title}"></h4>
+                    <h6 class="question-details mb-3">
+                        <a th:href="@{/profile/{id}(id=${question.getUser().getId()})}"
+                            th:text="'@' + ${question.getUser().fullName}"></a>
+                        <span class="text-muted">&nbsp;&nbsp;<small th:text="${question.dateSubmitted}"></small></span>
+                    </h6>
+                    <h6 class="question-text mb-4" th:text="${question.details}"></h6>
+
+                    <div class="answers mt-6">
+                        <div th:each="answer : ${question.answers}" th:id="${answer.id}" class="answer card mt-2">
+                            <div class="card-body">
+                                <h6 class="question-details mb-3">
+                                    <a th:href="@{/profile/{id}(id=${answer.getAdmin().getId()})}"
+                                        th:text="'@' + ${answer.getAdmin().getFullName()}"></a>
+                                    <span class="text-muted">&nbsp;&nbsp;<small
+                                            th:text="${answer.dateSubmitted}"></small></span>
+                                </h6>
+                                <h6 class="card-title mb-0" th:text="${answer.body}"></h6>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="post-answer mt-6"
+                        th:hidden="${!userSession.isLoggedIn() || !userSession.getUser().isAdmin()}">
+                        <form method="post" action="/question" role="form">
+                            <h4>Post an answer</h4>
+                            <div class="form-group mt-3">
+                                <textarea class="form-control" rows="3" name="body" placeholder="Type your answer here"
+                                    id="body"></textarea>
+                                <input type="hidden" id="questionId" th:value="${question.id}" name="id" />
+                            </div>
+
+                            <button class="btn btn-primary" type="submit">Answer</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <footer th:insert="fragments/footer :: footer"></footer>
+    </div>
+</body>
+
+</html>

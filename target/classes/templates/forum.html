@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
+
+<head th:insert="fragments/head :: head"> </head>
+
+<body class="index-page">
+  <div th:replace="fragments/navbar:: navbar"></div>
+
+
+  <div class="wrapper">
+    <div class="section section-shaped bg-secondary">
+      <div class="navbar-background"></div>
+      <div class="page-header">
+        <div class="container shape-container py-lg text-white">
+          <div th:replace="fragments/alert :: alert"></div>
+          <div class="d-flex mb-5">
+            <h3 class="mb-0 mr-auto">Asked questions</h3>
+            <a href="/ask-a-question" class="btn btn-primary"
+              th:hidden="${!userSession.isLoggedIn() || userSession.getUser().isAdmin()}">
+              Ask a question
+            </a>
+          </div>
+
+          <!-- <div th:each="question : ${questions}" th:id="${question.id}" class="card mt-3 shadow-sm" style="width: 100%">
+            <div class="card-body py-3 px-5">
+              <div class="row align-items-center">
+                <div class="mr-auto">
+                  <a th:href="@{/question(id=${question.id})}">
+                    <h5 class="card-title mb-3" th:text="${question.title}"></h5>
+                  </a>
+                  <h6 class="card-subtitle mb-0">
+                    <a th:href="@{/profile(id=${question.getUser().PPS})}"
+                      th:text="'@' + ${question.getUser().fullName}"></a>
+                    <span class="text-muted">&nbsp;&nbsp;<small th:text="${question.dateSubmitted}"></small></span>
+                  </h6>
+                </div>
+                <a th:href="@{/question(id=${question.id})}"
+                  th:text="${#lists.size(question.answers)} + ' answers'"></a>
+              </div>
+            </div>
+          </div> -->
+
+          <div th:each="question : ${questions}" th:id="${question.id}" class="card mt-3 shadow-sm" style="width: 100%">
+            <div class="card-body py-3 px-5">
+              <div class="row align-items-center">
+                <div class="mr-auto">
+                  <a th:href="@{/question(id=${question.id})}">
+                    <h5 class="card-title mb-3" th:text="${question.title}"></h5>
+                  </a>
+                  <h6 class="card-subtitle mb-0">
+                    <a th:href="@{/profile/{id}(id=${question.getUser().getId()})}"
+                      th:text="'@' + ${question.getUser().fullName}"></a>
+                    <span class="text-muted">&nbsp;&nbsp;<small th:text="${question.dateSubmitted}"></small></span>
+                  </h6>
+                </div>
+                <a th:href="@{/question(id=${question.id})}"
+                  th:text="${#lists.size(question.answers)} + ' answers'"></a>
+              </div>
+            </div>
+          </div>
+          <footer th:insert="fragments/footer :: footer"></footer>
+        </div>
+</body>
+
+</html>

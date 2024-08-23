@@ -1,0 +1,19 @@
+<th:block th:fragment="alert" th:if="${error != null or success != null}">
+    <div role="alert" class="alert alert-danger alert-dismissible mb-0" th:if="${error}">
+        <span class="alert-inner--text">
+            <span th:text="${error}">Error</span>
+        </span>
+        <button type="button" data-dismiss="alert" aria-label="Close" class="close">
+            <span aria-hidden="true">×</span>
+        </button>
+    </div>
+
+    <div role="alert" class="alert alert-success alert-dismissible mb-0" th:if="${success}">
+        <span class="alert-inner--text">
+            <span th:text="${success}">Success</span>
+        </span>
+        <button type="button" data-dismiss="alert" aria-label="Close" class="close">
+            <span aria-hidden="true">×</span>
+        </button>
+    </div>
+</th:block>
