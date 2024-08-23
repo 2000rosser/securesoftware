@@ -21,7 +21,9 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import service.vaxapp.UserSession;
 import service.vaxapp.model.*;
 import service.vaxapp.repository.*;
-
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -148,15 +150,41 @@ public class AppController {
         return "login";
     }
 
+    private static Map<String, Integer> loginAttempts = new HashMap<>();
+    private static Map<String, Long> lockoutEndTime = new HashMap<>();
+
     @PostMapping("/login")
     public String login(@RequestParam("email") String email, @RequestParam("pps") String pps,
-            RedirectAttributes redirectAttributes) {
-        // make sure the user is found in db by PPS and email
+                        RedirectAttributes redirectAttributes) {
+
+        if (lockoutEndTime.containsKey(email)) {
+            long endTime = lockoutEndTime.get(email);
+            if (System.currentTimeMillis() < endTime) {
+                redirectAttributes.addFlashAttribute("error", "Account is locked. Try again later.");
+                return "redirect:/login";
+            } else {
+                lockoutEndTime.remove(email);
+                loginAttempts.remove(email);
+            }
+        }
+
         User user = userRepository.findByCredentials(email, pps);
         if (user == null) {
+            loginAttempts.put(email, loginAttempts.getOrDefault(email, 0) + 1);
+
+            if (loginAttempts.get(email) >= 3) {
+                lockoutEndTime.put(email, System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(15));
+                redirectAttributes.addFlashAttribute("error", "Too many failed attempts. Account is locked for 15 minutes.");
+                return "redirect:/login";
+            }
+
             redirectAttributes.addFlashAttribute("error", "Wrong credentials.");
             return "redirect:/login";
         }
+
+        loginAttempts.remove(email);
+        lockoutEndTime.remove(email);
+
         userSession.setUserId(user.getId());
         redirectAttributes.addFlashAttribute("success", "Welcome, " + user.getFullName() + "!");
         return "redirect:/";
