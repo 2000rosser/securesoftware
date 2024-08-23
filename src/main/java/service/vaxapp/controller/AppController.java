@@ -205,11 +205,11 @@ public class AppController {
             return "redirect:/register";
         }
         if (userRepository.findByPPS(user.getPPS()) != null) {
-            redirectAttributes.addFlashAttribute("error", "User with this PPS number already exists.");
+            redirectAttributes.addFlashAttribute("error", "User with this PPS number or email already exists.");
             return "redirect:/register";
         }
         if (userRepository.findByEmail(user.getEmail()) != null) {
-            redirectAttributes.addFlashAttribute("error", "User with this email already exists.");
+            redirectAttributes.addFlashAttribute("error", "User with this PPS number or email already exists.");
             return "redirect:/register";
         }
         // Ensure user is 18 or older
