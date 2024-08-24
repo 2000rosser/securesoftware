@@ -1,5 +1,9 @@
 package service.vaxapp.controller;
 
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.KeySpec;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
@@ -21,8 +25,10 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import service.vaxapp.UserSession;
 import service.vaxapp.model.*;
 import service.vaxapp.repository.*;
+
+import javax.crypto.SecretKeyFactory;
+import javax.crypto.spec.PBEKeySpec;
 import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -150,11 +156,27 @@ public class AppController {
         return "login";
     }
 
+    public static String hashPassword(String password, byte[] salt) throws NoSuchAlgorithmException, InvalidKeySpecException {
+        KeySpec spec = new PBEKeySpec(password.toCharArray(), salt, 65536, 128);
+        SecretKeyFactory factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA1");
+        byte[] hash = factory.generateSecret(spec).getEncoded();
+        Base64.Encoder enc = Base64.getEncoder();
+        return enc.encodeToString(hash);
+    }
+
+    public static byte[] generateSalt() {
+        SecureRandom random = new SecureRandom();
+        byte[] salt = new byte[16];
+        random.nextBytes(salt);
+        return salt;
+    }
+
+
     private static Map<String, Integer> loginAttempts = new HashMap<>();
     private static Map<String, Long> lockoutEndTime = new HashMap<>();
 
     @PostMapping("/login")
-    public String login(@RequestParam("email") String email, @RequestParam("pps") String pps,
+    public String login(@RequestParam("email") String email, @RequestParam("password") String password,
                         RedirectAttributes redirectAttributes) {
 
         if (lockoutEndTime.containsKey(email)) {
@@ -168,17 +190,28 @@ public class AppController {
             }
         }
 
-        User user = userRepository.findByCredentials(email, pps);
+        User user = userRepository.findByEmail(email);
         if (user == null) {
-            loginAttempts.put(email, loginAttempts.getOrDefault(email, 0) + 1);
+            redirectAttributes.addFlashAttribute("error", "Wrong credentials.");
+            return "redirect:/login";
+        }
 
-            if (loginAttempts.get(email) >= 3) {
-                lockoutEndTime.put(email, System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(15));
-                redirectAttributes.addFlashAttribute("error", "Too many failed attempts. Account is locked for 15 minutes.");
+        try {
+            byte[] salt = Base64.getDecoder().decode(user.getSalt());
+            String hashedPassword = hashPassword(password, salt);
+
+            if (!hashedPassword.equals(user.getPassword())) {
+                loginAttempts.put(email, loginAttempts.getOrDefault(email, 0) + 1);
+                if (loginAttempts.get(email) >= 3) {
+                    lockoutEndTime.put(email, System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(15));
+                    redirectAttributes.addFlashAttribute("error", "Too many failed attempts. Account is locked for 15 minutes.");
+                    return "redirect:/login";
+                }
+                redirectAttributes.addFlashAttribute("error", "Wrong credentials.");
                 return "redirect:/login";
             }
-
-            redirectAttributes.addFlashAttribute("error", "Wrong credentials.");
+        } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+            redirectAttributes.addFlashAttribute("error", "An error occurred during login.");
             return "redirect:/login";
         }
 
@@ -200,7 +233,7 @@ public class AppController {
     public String register(User user, RedirectAttributes redirectAttributes) {
         if (user.getDateOfBirth().isEmpty() || user.getEmail().isEmpty() || user.getAddress().isEmpty()
                 || user.getFullName().isEmpty() || user.getGender().isEmpty() || user.getNationality().isEmpty()
-                || user.getPhoneNumber().isEmpty() || user.getPPS().isEmpty()) {
+                || user.getPhoneNumber().isEmpty() || user.getPPS().isEmpty() || user.getPassword().isEmpty()) {
             redirectAttributes.addFlashAttribute("error", "All fields are required!");
             return "redirect:/register";
         }
@@ -215,6 +248,42 @@ public class AppController {
         // Ensure user is 18 or older
         if (isUserUnderage(user.getDateOfBirth())) {
             redirectAttributes.addFlashAttribute("error", "Users under 18 cannot create an account.");
+            return "redirect:/register";
+        }
+        String password = user.getPassword();
+        if (password.length() < 8) {
+            redirectAttributes.addFlashAttribute("error", "Password must be at least 8 characters long.");
+            return "redirect:/register";
+        }
+
+        boolean hasUpperCase = false;
+        boolean hasSpecialChar = false;
+        for (char c : password.toCharArray()) {
+            if (Character.isUpperCase(c)) {
+                hasUpperCase = true;
+            }
+            if (!Character.isLetterOrDigit(c)) {
+                hasSpecialChar = true;
+            }
+        }
+
+        if (!hasUpperCase) {
+            redirectAttributes.addFlashAttribute("error", "Password must contain at least one uppercase letter.");
+            return "redirect:/register";
+        }
+
+        if (!hasSpecialChar) {
+            redirectAttributes.addFlashAttribute("error", "Password must contain at least one special character.");
+            return "redirect:/register";
+        }
+
+        try {
+            byte[] salt = generateSalt();
+            String hashedPassword = hashPassword(user.getPassword(), salt);
+            user.setPassword(hashedPassword);
+            user.setSalt(Base64.getEncoder().encodeToString(salt).getBytes());
+        } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+            redirectAttributes.addFlashAttribute("error", "An error occurred during registration.");
             return "redirect:/register";
         }
         userRepository.save(user);

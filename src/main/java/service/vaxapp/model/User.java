@@ -17,6 +17,10 @@ public class User {
     private Integer id;
     @Column(name = "user_pps", unique = true)
     private String PPS;
+    @Column(name = "user_password")
+    private String password;
+    @Column(name = "user_salt")
+    private byte[] salt;
     @Column(name = "full_name")
     private String fullName;
     @Column
@@ -52,9 +56,11 @@ public class User {
     public User() {
     }
 
-    public User(String PPS, String fullName, String address, String phoneNumber, String email, String dateOfBirth,
+    public User(String PPS, String password, byte[] salt, String fullName, String address, String phoneNumber, String email, String dateOfBirth,
             String nationality, String gender, Boolean admin) {
         this.PPS = PPS;
+        this.password=password;
+        this.salt=salt;
         this.fullName = fullName;
         this.address = address;
         this.phoneNumber = phoneNumber;
@@ -76,6 +82,14 @@ public class User {
     public void setPPS(String PPS) {
         this.PPS = PPS;
     }
+
+    public String getPassword() { return password; }
+
+    public void setPassword(String password) { this.password = password; }
+
+    public byte[] getSalt() { return salt; }
+
+    public void setSalt(byte[] salt) { this.salt = salt; }
 
     public String getFullName() {
         return fullName;

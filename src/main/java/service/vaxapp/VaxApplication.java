@@ -5,6 +5,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
 
+import service.vaxapp.controller.AppController;
 import service.vaxapp.model.Appointment;
 import service.vaxapp.model.AppointmentSlot;
 import service.vaxapp.model.ForumQuestion;
@@ -38,16 +39,16 @@ public class VaxApplication {
 
             if (userRepo.findAll().size() == 0) {
                 // init db
-                final User admin = new User("1234", "John Doe", "The Internet", "", "admin@vaxapp.com", "07/10/1987",
+                final User admin = new User("1234", "password", AppController.generateSalt(), "John Doe", "The Internet", "", "admin@vaxapp.com", "07/10/1987",
                         "Russian", "Male", true);
-                final User dragos = new User("1111", "Dragos George", "Bucharest", "", "dragos@vaxapp.com",
+                final User dragos = new User("1111", "password", AppController.generateSalt(), "Dragos George", "Bucharest", "", "dragos@vaxapp.com",
                         "05/06/1999",
                         "Romanian",
                         "Male", false);
-                final User andra = new User("2222", "Andra Antal", "Dublin", "", "andra@vaxapp.com", "05/06/1999",
+                final User andra = new User("2222","password", AppController.generateSalt(),  "Andra Antal", "Dublin", "", "andra@vaxapp.com", "05/06/1999",
                         "Irish",
                         "Female", false);
-                final User andrei = new User("3333", "Andrei Costin", "New York", "", "andrei@vaxapp.com", "04/04/2000",
+                final User andrei = new User("3333","password", AppController.generateSalt(),  "Andrei Costin", "New York", "", "andrei@vaxapp.com", "04/04/2000",
                         "American",
                         "Male", false);
 
