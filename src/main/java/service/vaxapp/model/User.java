@@ -5,6 +5,7 @@ import javax.persistence.*;
 import org.hibernate.annotations.Type;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.Period;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -52,6 +53,15 @@ public class User {
     // appointments)
     @OneToMany(fetch = FetchType.LAZY, mappedBy = "user")
     private List<Appointment> appointments;
+
+    @Column(name = "verification_token")
+    private String emailVerificationToken;
+
+    @Column
+    private LocalDateTime emailVerificationTokenExpiry;
+
+    @Column
+    private Boolean enabled;
 
     public User() {
     }
@@ -154,5 +164,29 @@ public class User {
 
     public Boolean isAdmin() {
         return admin;
+    }
+
+    public void setEmailVerificationToken(String emailVerificationToken){
+        this.emailVerificationToken = emailVerificationToken;
+    }
+
+    public String getEmailVerificationToken(){
+        return emailVerificationToken;
+    }
+
+    public void setEmailVerificationTokenExpiry(LocalDateTime emailVerificationTokenExpiry){
+        this.emailVerificationTokenExpiry = emailVerificationTokenExpiry;
+    }
+
+    public LocalDateTime getEmailVerificationTokenExpiry(){
+        return emailVerificationTokenExpiry;
+    }
+
+    public void setEnabled(Boolean enabled){
+        this.enabled = enabled;
+    }
+
+    public Boolean getEnabled(){
+        return enabled;
     }
 }

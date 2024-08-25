@@ -6,18 +6,15 @@ import java.security.spec.InvalidKeySpecException;
 import java.security.spec.KeySpec;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.Period;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -28,7 +25,7 @@ import service.vaxapp.repository.*;
 
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
-import java.util.HashMap;
+
 import java.util.concurrent.TimeUnit;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -217,7 +214,15 @@ public class AppController {
 
         loginAttempts.remove(email);
         lockoutEndTime.remove(email);
-
+        if(!user.getEnabled()) {
+            redirectAttributes.addFlashAttribute("error", "Email address not verified. New token sent");
+            String token = UUID.randomUUID().toString();
+            user.setEmailVerificationToken(token);
+            user.setEmailVerificationTokenExpiry(LocalDateTime.now().plusHours(24));
+            userRepository.save(user);
+            sendVerificationEmail(user.getEmail(), token);
+            return "redirect:/login";
+        }
         userSession.setUserId(user.getId());
         redirectAttributes.addFlashAttribute("success", "Welcome, " + user.getFullName() + "!");
         return "redirect:/";
@@ -282,12 +287,57 @@ public class AppController {
             String hashedPassword = hashPassword(user.getPassword(), salt);
             user.setPassword(hashedPassword);
             user.setSalt(Base64.getEncoder().encodeToString(salt).getBytes());
+
+            String token = UUID.randomUUID().toString();
+            user.setEmailVerificationToken(token);
+            user.setEmailVerificationTokenExpiry(LocalDateTime.now().plusHours(24));
+
+            user.setEnabled(false);
+
+            userRepository.save(user);
+
+            sendVerificationEmail(user.getEmail(), token);
+
+            redirectAttributes.addFlashAttribute("success", "Account created! Please check your email to verify your account.");
+            return "redirect:/login";
         } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
             redirectAttributes.addFlashAttribute("error", "An error occurred during registration.");
             return "redirect:/register";
         }
+    }
+
+    @Autowired
+    private JavaMailSender mailSender;
+
+    private void sendVerificationEmail(String email, String token) {
+        String verificationUrl = "https://localhost:8082/verify?token=" + token;
+        String subject = "Please Verify Your Email";
+        String message = "Click the link below to verify your email address:\n" + verificationUrl;
+    
+        SimpleMailMessage mailMessage = new SimpleMailMessage();
+        mailMessage.setTo(email);
+        mailMessage.setSubject(subject);
+        mailMessage.setText(message);
+    
+        mailSender.send(mailMessage);
+    }
+
+    @RequestMapping(value = "/verify", method = RequestMethod.GET)
+    public String verifyEmail(@RequestParam("token") String token, RedirectAttributes redirectAttributes) {
+        User user = userRepository.findByEmailVerificationToken(token);
+
+        if (user == null || user.getEmailVerificationTokenExpiry().isBefore(LocalDateTime.now())) {
+            redirectAttributes.addFlashAttribute("error", "Invalid or expired verification token.");
+            return "redirect:/login";
+        }
+
+        user.setEmailVerificationToken(null);
+        user.setEmailVerificationTokenExpiry(null);
+        user.setEnabled(true);
+
         userRepository.save(user);
-        redirectAttributes.addFlashAttribute("success", "Account created! You can sign in now.");
+
+        redirectAttributes.addFlashAttribute("success", "Email verified successfully! You can sign in now.");
         return "redirect:/login";
     }
 

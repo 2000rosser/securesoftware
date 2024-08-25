@@ -26,4 +26,7 @@ public interface UserRepository extends JpaRepository<User, Integer> {
 
     @Query(value = "SELECT * FROM users WHERE nationality=:nationality", nativeQuery = true)
     List<User> countByNationality(String nationality);
+
+    @Query(value = "SELECT * FROM users WHERE verification_token=:token", nativeQuery = true)
+    User findByEmailVerificationToken(String token);
 }
