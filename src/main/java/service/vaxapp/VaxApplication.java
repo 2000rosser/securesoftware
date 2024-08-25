@@ -22,6 +22,7 @@ import service.vaxapp.repository.VaccineRepository;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 
 @SpringBootApplication
@@ -39,18 +40,24 @@ public class VaxApplication {
 
             if (userRepo.findAll().size() == 0) {
                 // init db
-                final User admin = new User("1234", "password", AppController.generateSalt(), "John Doe", "The Internet", "", "admin@vaxapp.com", "07/10/1987",
-                        "Russian", "Male", true);
-                final User dragos = new User("1111", "password", AppController.generateSalt(), "Dragos George", "Bucharest", "", "dragos@vaxapp.com",
-                        "05/06/1999",
-                        "Romanian",
-                        "Male", false);
-                final User andra = new User("2222","password", AppController.generateSalt(),  "Andra Antal", "Dublin", "", "andra@vaxapp.com", "05/06/1999",
-                        "Irish",
-                        "Female", false);
-                final User andrei = new User("3333","password", AppController.generateSalt(),  "Andrei Costin", "New York", "", "andrei@vaxapp.com", "04/04/2000",
-                        "American",
-                        "Male", false);
+                byte[] salt = AppController.generateSalt();
+                String saltBase64 = Base64.getEncoder().encodeToString(salt);
+                String hashedPassword = AppController.hashPassword("password", salt);
+                final User admin = new User("1234", hashedPassword, saltBase64.getBytes(), 
+                                        "John Doe", "The Internet", "", "admin@vaxapp.com", 
+                                        "07/10/1987", "Russian", "Male", true);
+
+                final User dragos = new User("1111", hashedPassword, saltBase64.getBytes(), 
+                                         "Dragos George", "Bucharest", "", "dragos@vaxapp.com", 
+                                         "05/06/1999", "Romanian", "Male", false);
+
+                final User andra = new User("2222", hashedPassword, saltBase64.getBytes(), 
+                                        "Andra Antal", "Dublin", "", "andra@vaxapp.com", 
+                                        "05/06/1999", "Irish", "Female", false);
+
+                final User andrei = new User("3333", hashedPassword, saltBase64.getBytes(), 
+                                         "Andrei Costin", "New York", "", "andrei@vaxapp.com", 
+                                         "04/04/2000", "American", "Male", false);
 
                 userRepo.save(admin);
                 userRepo.save(dragos);
