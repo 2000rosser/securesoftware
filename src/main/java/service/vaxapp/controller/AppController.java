@@ -214,7 +214,7 @@ public class AppController {
 
         loginAttempts.remove(email);
         lockoutEndTime.remove(email);
-        if(!user.getEnabled()) {
+        if(user.getEnabled() == null || !user.getEnabled()) {
             redirectAttributes.addFlashAttribute("error", "Email address not verified. New token sent");
             String token = UUID.randomUUID().toString();
             user.setEmailVerificationToken(token);
