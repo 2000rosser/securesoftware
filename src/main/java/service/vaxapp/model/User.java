@@ -63,6 +63,12 @@ public class User {
     @Column
     private Boolean enabled;
 
+    @Column
+    private String oneTimeCode;
+
+    @Column
+    private LocalDateTime oneTimeCodeExpiry;
+
     public User() {
     }
 
@@ -188,5 +194,21 @@ public class User {
 
     public Boolean getEnabled(){
         return enabled;
+    }
+
+    public void setOneTimeCode(String oneTimeCode){
+        this.oneTimeCode=oneTimeCode;
+    }
+
+    public String getOneTimeCode(){
+        return oneTimeCode;
+    }
+
+    public void setOneTimeCodeExpiry(LocalDateTime oneTimeCodeExpiry){
+        this.oneTimeCodeExpiry=oneTimeCodeExpiry;
+    }
+
+    public LocalDateTime getOneTimeCodeExpiry(){
+        return oneTimeCodeExpiry;
     }
 }

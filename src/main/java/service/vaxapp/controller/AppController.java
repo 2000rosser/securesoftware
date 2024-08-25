@@ -214,6 +214,7 @@ public class AppController {
 
         loginAttempts.remove(email);
         lockoutEndTime.remove(email);
+
         if(user.getEnabled() == null || !user.getEnabled()) {
             redirectAttributes.addFlashAttribute("error", "Email address not verified. New token sent");
             String token = UUID.randomUUID().toString();
@@ -223,7 +224,61 @@ public class AppController {
             sendVerificationEmail(user.getEmail(), token);
             return "redirect:/login";
         }
+        
+        String otp = generateOTP();
+        user.setOneTimeCode(otp);
+        user.setOneTimeCodeExpiry(LocalDateTime.now().plusMinutes(10));
+        userRepository.save(user);
+
+        sendOTPEmail(user.getEmail(), otp);
+
+        return "redirect:/verify-otp";
+    }
+
+    // https://stackoverflow.com/a/51324081/15143894
+    public static String generateOTP() {
+        Random rnd = new Random();
+        int number = rnd.nextInt(999999);
+        return String.format("%06d", number);
+    }
+
+    private void sendOTPEmail(String email, String otp) {
+        String subject = "Vaxapp (OTP)";
+        String message = "Your one-time password for login is: \n" + otp;
+    
+        SimpleMailMessage mailMessage = new SimpleMailMessage();
+        mailMessage.setTo(email);
+        mailMessage.setSubject(subject);
+        mailMessage.setText(message);
+    
+        mailSender.send(mailMessage);
+    }
+
+    @GetMapping("/verify-otp")
+    public String showOTPVerificationPage() {
+        return "verify-otp";
+    }
+
+    @PostMapping("/verify-otp")
+    public String verifyOTP(@RequestParam("otp") String otp, @RequestParam("email") String email, RedirectAttributes redirectAttributes) {
+
+        User user = userRepository.findByEmail(email);
+        if (user == null || user.getOneTimeCodeExpiry().isBefore(LocalDateTime.now())) {
+            redirectAttributes.addFlashAttribute("error", "Invalid or expired OTP.");
+            return "redirect:/login";
+        }
+
+        if (!otp.equals(user.getOneTimeCode())) {
+            redirectAttributes.addFlashAttribute("error", "Invalid OTP. Please try again.");
+            return "redirect:/verify-otp";
+        }
+
+        user.setOneTimeCode(null);
+        user.setOneTimeCodeExpiry(null);
+        userRepository.save(user);
+
         userSession.setUserId(user.getId());
+
         redirectAttributes.addFlashAttribute("success", "Welcome, " + user.getFullName() + "!");
         return "redirect:/";
     }
