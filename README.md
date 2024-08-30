@@ -17,6 +17,8 @@ To run this project,you must have:
     - username: `admin`
     - password: `admin`
 
+    - keystore pass: `changeit`
+
     If you wish to change this, you are free to modify the `application.properties` file with your own user credentials.
 
 1.  A database named `vaxapp`
@@ -62,6 +64,18 @@ When the application is up and running, the port used will be specified in the t
 If port 8080 is already in use, you will need to modify the `application.properties` file and specify a new port as follows:
 
 > `# server.port = xxxx`
+
+### Test email verification and MFA using mailhog
+
+Download mailhog from their github page - [Mailhog github](https://github.com/mailhog/MailHog)
+
+Run the mailhog command in your terminal.
+
+> `mailhog`
+
+Navigate to `localhost:8025`, which is the default address. Emails will appear here! (If ports are in use you can configure them youself. Use `mailhog -h` for more info)
+
+To configure an actual smtp server, change the settings in `application.properties`.
 
 ## Authors
 
