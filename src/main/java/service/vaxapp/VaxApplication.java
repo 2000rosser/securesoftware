@@ -1,5 +1,7 @@
 package service.vaxapp;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -29,7 +31,10 @@ import java.util.List;
 public class VaxApplication {
     public static void main(String[] args) {
         SpringApplication.run(VaxApplication.class, args);
+        logger.info("VaxApplication started");
     }
+
+    private static final Logger logger = LoggerFactory.getLogger(VaxApplication.class);
 
     @Bean
     public CommandLineRunner commandLineRunner(VaccineCentreRepository vaccineCentreRepo, VaccineRepository vaccineRepo,
@@ -39,6 +44,7 @@ public class VaxApplication {
             System.out.println("VaxApp started");
 
             if (userRepo.findAll().size() == 0) {
+                logger.info("Database is empty. Initializing with default data.");
                 // init db
                 byte[] salt = AppController.generateSalt();
                 String saltBase64 = Base64.getEncoder().encodeToString(salt);
@@ -63,7 +69,7 @@ public class VaxApplication {
                 userRepo.save(dragos);
                 userRepo.save(andra);
                 userRepo.save(andrei);
-
+                logger.info("Initial users saved to the database.");
                 // Vaccine Centres
                 final List<VaccineCentre> centres = new ArrayList<VaccineCentre>() {
                     {
@@ -75,6 +81,7 @@ public class VaxApplication {
 
                 for (int i = 0; i < centres.size(); ++i) {
                     vaccineCentreRepo.save(centres.get(i));
+                    logger.info("Saved Vaccine Centre: "+ centres.get(i).getName());
                 }
 
                 // Appointment slots
@@ -93,6 +100,7 @@ public class VaxApplication {
 
                 for (var as : slots) {
                     appointmentSlotRepo.save(as);
+                    logger.info("Saved AppointmentSlot at " + as.getVaccineCentre().getName() + " on " + as.getDate());
                 }
 
                 // Questions and answers
@@ -105,6 +113,7 @@ public class VaxApplication {
 
                 forumQuestionRepo.save(q1);
                 forumQuestionRepo.save(q2);
+                logger.info("Saved ForumQuestions");
 
                 // Vaccines
                 Vaccine vax1 = new Vaccine(userRepo.findById(admin.getId()).get(), LocalDate.of(2021, 9, 9),
@@ -123,6 +132,7 @@ public class VaxApplication {
                 vaccineRepo.save(vax3);
                 vaccineRepo.save(vax4);
                 vaccineRepo.save(vax5);
+                logger.info("Initial vaccines saved to the database.");
 
                 // Appointments
                 List<Appointment> apps = new ArrayList<Appointment>() {
@@ -144,7 +154,8 @@ public class VaxApplication {
                 for (var app : apps) {
                     appointmentRepo.save(app);
                 }
-
+                logger.info("Saved Appointments successfully");
+                logger.info("Database initialised");
             }
         };
     }

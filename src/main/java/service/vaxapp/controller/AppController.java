@@ -11,6 +11,8 @@ import java.time.LocalTime;
 import java.time.Period;
 import java.time.format.DateTimeFormatter;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.mail.SimpleMailMessage;
@@ -25,6 +27,7 @@ import service.vaxapp.repository.*;
 
 import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.PBEKeySpec;
+import javax.servlet.http.HttpServletRequest;
 
 import java.util.concurrent.TimeUnit;
 import java.util.*;
@@ -51,10 +54,12 @@ public class AppController {
     @Autowired
     private UserSession userSession;
 
-    @GetMapping("/")
-    public String index(Model model) {
-        ArrayList<AppointmentSlot> appSlots = (ArrayList<AppointmentSlot>) appointmentSlotRepository.findAll();
+    private static final Logger logger = LoggerFactory.getLogger(AppController.class);
 
+    @GetMapping("/")
+    public String index(Model model, HttpServletRequest request) {
+        logger.info("Connection from:" + request.getRemoteAddr() + " to \"/\" endpoint");
+        ArrayList<AppointmentSlot> appSlots = (ArrayList<AppointmentSlot>) appointmentSlotRepository.findAll();
         // sort time slots by center and date
         Collections.sort(appSlots, new Comparator<AppointmentSlot>() {
             public int compare(AppointmentSlot o1, AppointmentSlot o2) {
@@ -75,9 +80,11 @@ public class AppController {
 
     @PostMapping(value = "/make-appointment")
     public String makeAppointment(@RequestParam Map<String, String> body, Model model,
-            RedirectAttributes redirectAttributes) {
+            RedirectAttributes redirectAttributes, HttpServletRequest request) {
+        logger.info("Connection from:" + request.getRemoteAddr() + " to \"/make-appointment\" endpoint");
         if (!userSession.isLoggedIn()) {
             redirectAttributes.addFlashAttribute("error", "You must be logged in to make an appointment.");
+            logger.info("User requested to make appointment without loggin in");
             return "redirect:/login";
         }
 
@@ -85,6 +92,7 @@ public class AppController {
         if (appointmentRepository.findPending(userSession.getUserId()) != null) {
             redirectAttributes.addFlashAttribute("error",
                     "You can only have one pending appointment at a time. Please check your appointment list.");
+            logger.info("User tried to make more than 1 appointment");
             return "redirect:/";
         }
 
@@ -105,11 +113,13 @@ public class AppController {
 
         redirectAttributes.addFlashAttribute("success",
                 "Your appointment has been made! Please see the details of your new appointment.");
+        logger.info("Appointment created by " + userSession.getUser().getEmail());
         return "redirect:/profile";
     }
 
     @GetMapping("/stats")
-    public String statistics(Model model) {
+    public String statistics(Model model, HttpServletRequest request) {
+        logger.info("Connection from:" + request.getRemoteAddr() + " to /stats");
         getStats(model, "irish");
         return "stats.html";
     }
@@ -139,7 +149,8 @@ public class AppController {
     }
 
     @PostMapping("/stats")
-    public String statistics(Model model, @RequestParam("nationality") String country) {
+    public String statistics(Model model, @RequestParam("nationality") String country, HttpServletRequest request) {
+        logger.info("Connection from:" + request.getRemoteAddr() + " to \"/make-appointment\" endpoint");
         getStats(model, country);
         return "stats.html";
     }
@@ -173,12 +184,14 @@ public class AppController {
 
     @PostMapping("/login")
     public String login(@RequestParam("email") String email, @RequestParam("password") String password,
-                        RedirectAttributes redirectAttributes) {
+                        RedirectAttributes redirectAttributes, HttpServletRequest request) {
+        logger.info("User from:" + request.getRemoteAddr() + " is attempting to login");
 
         if (lockoutEndTime.containsKey(email)) {
             long endTime = lockoutEndTime.get(email);
             if (System.currentTimeMillis() < endTime) {
                 redirectAttributes.addFlashAttribute("error", "Account is locked. Try again later.");
+                logger.warn("User tried to login to locked account");
                 return "redirect:/login";
             } else {
                 lockoutEndTime.remove(email);
@@ -189,6 +202,7 @@ public class AppController {
         User user = userRepository.findByEmail(email);
         if (user == null) {
             redirectAttributes.addFlashAttribute("error", "Wrong credentials.");
+            logger.error("Incorrect email used or user does not exist");
             return "redirect:/login";
         }
 
@@ -201,13 +215,16 @@ public class AppController {
                 if (loginAttempts.get(email) >= 3) {
                     lockoutEndTime.put(email, System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(15));
                     redirectAttributes.addFlashAttribute("error", "Too many failed attempts. Account is locked for 15 minutes.");
+                    logger.warn("User " + user.getEmail() + " has been blocked from logging in for 15 minutes");
                     return "redirect:/login";
                 }
                 redirectAttributes.addFlashAttribute("error", "Wrong credentials.");
+                logger.warn("User " + user.getEmail() + " attempted to login using incorrect credentials from IP: " + request.getRemoteAddr());
                 return "redirect:/login";
             }
         } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
             redirectAttributes.addFlashAttribute("error", "An error occurred during login.");
+            logger.error("An error occured while attempting to login.");
             return "redirect:/login";
         }
 
@@ -216,6 +233,7 @@ public class AppController {
 
         if(user.getEnabled() == null || !user.getEnabled()) {
             redirectAttributes.addFlashAttribute("error", "Email address not verified. New token sent");
+            logger.warn("User tried to login without verified email");
             String token = UUID.randomUUID().toString();
             user.setEmailVerificationToken(token);
             user.setEmailVerificationTokenExpiry(LocalDateTime.now().plusHours(24));
@@ -228,8 +246,9 @@ public class AppController {
         user.setOneTimeCode(otp);
         user.setOneTimeCodeExpiry(LocalDateTime.now().plusMinutes(10));
         userRepository.save(user);
-
+        
         sendOTPEmail(user.getEmail(), otp);
+        logger.info("User " + user.getEmail() +" saved to database and one time passcode sent");
 
         return "redirect:/verify-otp";
     }
@@ -251,6 +270,7 @@ public class AppController {
         mailMessage.setText(message);
     
         mailSender.send(mailMessage);
+        logger.info("One time passcode sent to " + email);
     }
 
     @GetMapping("/verify-otp")
@@ -263,12 +283,14 @@ public class AppController {
 
         User user = userRepository.findByEmail(email);
         if (user == null || user.getOneTimeCodeExpiry().isBefore(LocalDateTime.now())) {
-            redirectAttributes.addFlashAttribute("error", "Invalid or expired OTP.");
+            redirectAttributes.addFlashAttribute("error", "No username entered or expired OTP.");
+            logger.warn("Email was not entered or OTP code expired");
             return "redirect:/login";
         }
 
         if (!otp.equals(user.getOneTimeCode())) {
             redirectAttributes.addFlashAttribute("error", "Invalid OTP. Please try again.");
+            logger.warn("User entered incorrect OTP");
             return "redirect:/verify-otp";
         }
 
@@ -279,6 +301,7 @@ public class AppController {
         userSession.setUserId(user.getId());
 
         redirectAttributes.addFlashAttribute("success", "Welcome, " + user.getFullName() + "!");
+        logger.info("User " + user.getEmail() + " successfully logged in");
         return "redirect:/";
     }
 
@@ -289,19 +312,35 @@ public class AppController {
     }
 
     @RequestMapping(value = "/register", method = RequestMethod.POST, consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
-    public String register(User user, RedirectAttributes redirectAttributes) {
-        if (user.getDateOfBirth().isEmpty() || user.getEmail().isEmpty() || user.getAddress().isEmpty()
-                || user.getFullName().isEmpty() || user.getGender().isEmpty() || user.getNationality().isEmpty()
-                || user.getPhoneNumber().isEmpty() || user.getPPS().isEmpty() || user.getPassword().isEmpty()) {
+    public String register( 
+        @RequestParam("email") String email, @RequestParam("fullName") String name, @RequestParam("PPS") String pps, @RequestParam("password") String password, 
+        @RequestParam("phoneNumber") String number, @RequestParam("address") String address, @RequestParam("dateOfBirth") String dateOfBirth, 
+        @RequestParam("nationality") String nationality,  @RequestParam("gender") String gender, RedirectAttributes redirectAttributes, HttpServletRequest request) {
+        logger.info("Attempt from:" + request.getRemoteAddr() + " to register using email " + email);
+        if (dateOfBirth.isEmpty() || email.isEmpty() || address.isEmpty()
+                || name.isEmpty() || gender.isEmpty() || nationality.isEmpty()
+                || number.isEmpty() || pps.isEmpty() || password.isEmpty()) {
             redirectAttributes.addFlashAttribute("error", "All fields are required!");
             return "redirect:/register";
         }
+        User user = new User();
+        user.setDateOfBirth(dateOfBirth);
+        user.setEmail(email);
+        user.setAddress(address);
+        user.setFullName(name);
+        user.setGender(gender);
+        user.setNationality(nationality);
+        user.setPhoneNumber(number);
+        user.setPPS(pps);
+        user.setPassword(password);
         if (userRepository.findByPPS(user.getPPS()) != null) {
             redirectAttributes.addFlashAttribute("error", "User with this PPS number or email already exists.");
+            logger.warn("User from " + request.getRemoteAddr() + " tried to register to an account with PPS that already exists using email " + email);
             return "redirect:/register";
         }
         if (userRepository.findByEmail(user.getEmail()) != null) {
             redirectAttributes.addFlashAttribute("error", "User with this PPS number or email already exists.");
+            logger.warn("User from " + request.getRemoteAddr() + " tried to register to an account with email that already exists using email " + email);
             return "redirect:/register";
         }
         // Ensure user is 18 or older
@@ -309,7 +348,6 @@ public class AppController {
             redirectAttributes.addFlashAttribute("error", "Users under 18 cannot create an account.");
             return "redirect:/register";
         }
-        String password = user.getPassword();
         if (password.length() < 8) {
             redirectAttributes.addFlashAttribute("error", "Password must be at least 8 characters long.");
             return "redirect:/register";
@@ -353,9 +391,11 @@ public class AppController {
             sendVerificationEmail(user.getEmail(), token);
 
             redirectAttributes.addFlashAttribute("success", "Account created! Please check your email to verify your account.");
+            logger.info("Account for user " + email + " has been created");
             return "redirect:/login";
         } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
             redirectAttributes.addFlashAttribute("error", "An error occurred during registration.");
+            logger.error("Error occured during registration", e);
             return "redirect:/register";
         }
     }
@@ -374,6 +414,7 @@ public class AppController {
         mailMessage.setText(message);
     
         mailSender.send(mailMessage);
+        logger.info("Verification email sent to " + email);
     }
 
     @RequestMapping(value = "/verify", method = RequestMethod.GET)
@@ -382,6 +423,7 @@ public class AppController {
 
         if (user == null || user.getEmailVerificationTokenExpiry().isBefore(LocalDateTime.now())) {
             redirectAttributes.addFlashAttribute("error", "Invalid or expired verification token.");
+            logger.warn("User entered an invalid token for email verification. Email: " + user.getEmail());
             return "redirect:/login";
         }
 
@@ -392,17 +434,20 @@ public class AppController {
         userRepository.save(user);
 
         redirectAttributes.addFlashAttribute("success", "Email verified successfully! You can sign in now.");
+        logger.info("User " + user.getEmail() + " successfully verified email");
         return "redirect:/login";
     }
 
     @GetMapping("/logout")
     public String logout() {
         userSession.setUserId(null);
+        logger.info("User " + userSession.getUserId() + " logged out");
         return "redirect:/";
     }
 
     @GetMapping("/forum")
-    public String forum(Model model) {
+    public String forum(Model model, HttpServletRequest request) {
+        logger.info("Connection from:" + request.getRemoteAddr() + " to \"/forum\" endpoint");
         // Retrieve all questions and answers from database
         List<ForumQuestion> questions = forumQuestionRepository.findAll();
         model.addAttribute("questions", questions);
@@ -411,7 +456,8 @@ public class AppController {
     }
 
     @GetMapping("/ask-a-question")
-    public String askAQuestion(Model model, RedirectAttributes redirectAttributes) {
+    public String askAQuestion(Model model, RedirectAttributes redirectAttributes, HttpServletRequest request) {
+        logger.info("Connection from:" + request.getRemoteAddr() + " to \"/ask-a-quesiton\" endpoint");
         // If not logged in or admin, return to forum
         if (!userSession.isLoggedIn() || userSession.getUser().isAdmin()) {
             redirectAttributes.addFlashAttribute("error", "Users must be logged in to ask questions.");
@@ -425,9 +471,9 @@ public class AppController {
     @PostMapping("/ask-a-question")
     public String askAQuestion(@RequestParam String title, @RequestParam String details, Model model,
             RedirectAttributes redirectAttributes) {
-        // If user is not logged in or is admin
-        if (!userSession.isLoggedIn() || userSession.getUser().isAdmin()) {
-            redirectAttributes.addFlashAttribute("error", "Users must be logged in to ask questions.");
+                // If user is not logged in or is admin
+                if (!userSession.isLoggedIn() || userSession.getUser().isAdmin()) {
+                    redirectAttributes.addFlashAttribute("error", "Users must be logged in to ask questions.");
             return "redirect:/forum";
         }
 
@@ -438,6 +484,7 @@ public class AppController {
         forumQuestionRepository.save(newQuestion);
 
         redirectAttributes.addFlashAttribute("success", "The question was successfully submitted.");
+        logger.info("Question has been submitted");
 
         // Redirect to new question page
         return "redirect:/question?id=" + newQuestion.getId();
@@ -463,11 +510,13 @@ public class AppController {
                     forumQuestionRepository.save(question.get());
 
                     redirectAttributes.addFlashAttribute("success", "The answer was successfully submitted.");
+                    logger.info("A question has been answered");
                     // Redirect to updated question page
                     return "redirect:/question?id=" + question.get().getId();
                 } else {
                     redirectAttributes.addFlashAttribute("error",
                             "Only admins may answer questions. If you are an admin, please log in.");
+                    logger.warn("Non admin user tried to ask answer a question. USERID: " + userSession.getUserId());
                     // Redirect to unchanged same question page
                     return "redirect:/question?id=" + question.get().getId();
                 }
@@ -480,19 +529,21 @@ public class AppController {
     }
 
     @GetMapping("/profile")
-    public String profile(Model model, RedirectAttributes redirectAttributes) {
+    public String profile(Model model, RedirectAttributes redirectAttributes, HttpServletRequest request) {
+        logger.info("Connection from:" + request.getRemoteAddr() + " to \"/profile\" endpoint");
         if (!userSession.isLoggedIn()) {
             redirectAttributes.addFlashAttribute("error",
                     "You must be logged in to view your profile. If you do not already have an account, please register.");
+            logger.warn("Non logged in user attempted to view profile page from IP " + request.getRemoteAddr());
             return "redirect:/login";
         }
-
+        
         List<Appointment> apps = appointmentRepository.findByUser(userSession.getUserId());
         Collections.reverse(apps);
-
+        
         List<Vaccine> vaxes = vaccineRepository.findByUser(userSession.getUserId());
         Collections.reverse(vaxes);
-
+        
         model.addAttribute("vaccineCenters", vaccineCentreRepository.findAll());
         model.addAttribute("appointments", apps);
         model.addAttribute("vaccines", vaxes);
@@ -504,29 +555,32 @@ public class AppController {
         model.addAttribute("userAppts", appointmentRepository.findByUser(userSession.getUserId()).size());
         return "profile";
     }
-
+    
     @GetMapping("/profile/{stringId}")
-    public String profile(@PathVariable String stringId, Model model) {
+    public String profile(@PathVariable String stringId, Model model, HttpServletRequest request) {
+        logger.info("Connection from:" + request.getRemoteAddr() + " to \"/profile/" + stringId +"\" endpoint");
         if (stringId == null)
-            return "404";
-
+        return "404";
+        
         //CWE-639
         if (!userSession.isLoggedIn()) {
+            logger.warn("Non logged in user attempted to view \"/profile/" + stringId + "\" page from IP " + request.getRemoteAddr());
             return "redirect:/login";
         }
-
+        
         if (!userSession.getUserId().equals(Integer.valueOf(stringId))) {
+            logger.warn("user attempted to view \"/profile/" + stringId + "\", which is not theirs from IP " + request.getRemoteAddr());
             return "401";
         }
-
+        
         try {
             Integer id = Integer.valueOf(stringId);
             Optional<User> user = userRepository.findById(id);
-
+            
             if (!user.isPresent()) {
                 return "404";
             }
-
+            
             List<Vaccine> vaxes = vaccineRepository.findByUser(user.get().getId());
 
             if (userSession.isLoggedIn() && userSession.getUser().isAdmin()) {
@@ -552,15 +606,18 @@ public class AppController {
     }
 
     @GetMapping("/cancel-appointment/{stringId}")
-    public String cancelAppointment(@PathVariable String stringId, RedirectAttributes redirectAttributes) {
-        if (!userSession.isLoggedIn())
+    public String cancelAppointment(@PathVariable String stringId, RedirectAttributes redirectAttributes, HttpServletRequest request) {
+        logger.info("Connection from:" + request.getRemoteAddr() + " to \"/cancel-appointment/<stringId>\" endpoint");
+        if (!userSession.isLoggedIn()){
             return "redirect:/login";
-
+        }
+        
         Integer id = Integer.valueOf(stringId);
         Appointment app = appointmentRepository.findById(id).get();
-
+        
         if (!userSession.getUser().isAdmin() && userSession.getUser().getId() != app.getUser().getId()) {
             // Hacker detected! You can't cancel someone else's appointment!
+            logger.warn("Non logged in user attempted to cancel appointment");
             return "404";
         }
 
@@ -571,6 +628,7 @@ public class AppController {
         appointmentSlotRepository.save(appSlot);
 
         redirectAttributes.addFlashAttribute("success", "The appointment was successfully cancelled.");
+        logger.info("Appintment has been created for user ID: " + userSession.getUserId());
 
         if (app.getUser().getId() != userSession.getUser().getId()) {
             return "redirect:/profile/" + app.getUser().getId();
@@ -581,7 +639,8 @@ public class AppController {
 
     @GetMapping("/question")
     public String getQuestionById(@RequestParam(name = "id") Integer id, Model model,
-            RedirectAttributes redirectAttributes) {
+            RedirectAttributes redirectAttributes, HttpServletRequest request) {
+        logger.info("Connection from:" + request.getRemoteAddr() + " to \"/question\" endpoint");
         // Retrieve question
         Optional<ForumQuestion> question = forumQuestionRepository.findById(id);
         if (question.isPresent()) {
@@ -600,46 +659,55 @@ public class AppController {
      * Admin area
      */
     @GetMapping("/dashboard")
-    public String dashboard(Model model) {
-        if (!userSession.isLoggedIn() || !userSession.getUser().isAdmin())
+    public String dashboard(Model model, HttpServletRequest request) {
+        logger.info("Connection from:" + request.getRemoteAddr() + " to \"/dashboard\" endpoint");
+        if (!userSession.isLoggedIn() || !userSession.getUser().isAdmin()){
+            logger.warn("Non logged in user/non-admin from IP: " + request.getRemoteAddr() + " tried to view the admin dashboard");
             return "redirect:/login";
-
+        }
+        
         model.addAttribute("users", userRepository.findAll());
         model.addAttribute("userSession", userSession);
         return "dashboard";
     }
-
+    
     @PostMapping(value = "/find-user")
-    public String findUser(@RequestParam Map<String, String> body, Model model) {
+    public String findUser(@RequestParam Map<String, String> body, Model model, HttpServletRequest request) {
+        logger.info("Connection from:" + request.getRemoteAddr() + " to \"/find-user\" endpoint");
         // CWE-306
-        if (!userSession.isLoggedIn() || !userSession.getUser().isAdmin())
+        if (!userSession.isLoggedIn() || !userSession.getUser().isAdmin()){
+            logger.warn("Non logged in user/non-admin from IP: " + request.getRemoteAddr() + " tried to view a user using find-user endpoint");
             return "redirect:/login";
+        }
         String input = body.get("input");
-
+        
         User user = userRepository.findByPPSorName(input);
         if (user == null) {
+            logger.info("User not found");
             return "redirect:/dashboard";
         }
-
+        
         return "redirect:/profile/" + user.getId();
     }
-
+    
     @PostMapping(value = "/assign-vaccine")
     public String assignVaccine(@RequestParam Map<String, String> body, Model model,
-            RedirectAttributes redirectAttributes) {
+    RedirectAttributes redirectAttributes, HttpServletRequest request) {
+        logger.info("Connection from:" + request.getRemoteAddr() + " to \"/assign-vaccine\" endpoint");
         if (!userSession.isLoggedIn() || !userSession.getUser().isAdmin()) {
+            logger.warn("Non logged in user/non-admin from IP: " + request.getRemoteAddr() + " tried to assign a vaccine");
             return "redirect:/login";
         }
-
+        
         LocalDate vaxDate = LocalDate.parse(body.get("date"), DateTimeFormatter.ofPattern("dd/MM/yyyy"));
         Integer userId = Integer.valueOf(body.get("user_id"));
         Integer centreId = Integer.valueOf(body.get("center_id"));
         String vaxType = body.get("vaccine");
-
+        
         User vaxUser = userRepository.findById(userId).get();
         VaccineCentre vaxCentre = vaccineCentreRepository.findById(centreId).get();
         redirectAttributes.addFlashAttribute("success", "The vaccine was recorded.");
-
+        
         // See how many other doses there are per user
         List<Vaccine> vaccines = vaccineRepository.findByUser(userId);
         if (vaccines == null || vaccines.size() == 0) {
@@ -664,25 +732,30 @@ public class AppController {
             appointment = new Appointment(vaxCentre, date, time, user, "pending");
             appointmentRepository.save(appointment);
             redirectAttributes.addFlashAttribute("success",
-                    "The vaccine was recorded and a new appointment at least 3 weeks from now has been made for the user.");
+            "The vaccine was recorded and a new appointment at least 3 weeks from now has been made for the user.");
         }
+        logger.info("vaccine recorded");
         // Save new vaccine
         Vaccine vax = new Vaccine(userSession.getUser(), vaxDate, vaxCentre, vaxUser, vaxType);
         vaccineRepository.save(vax);
-
+        
         return "redirect:/profile/" + userId;
     }
-
+    
     @GetMapping("/complete-appointment/{stringId}")
-    public String completeAppointment(@PathVariable String stringId, RedirectAttributes redirectAttributes) {
-        if (!userSession.isLoggedIn())
+    public String completeAppointment(@PathVariable String stringId, RedirectAttributes redirectAttributes, HttpServletRequest request) {
+        logger.info("Connection from:" + request.getRemoteAddr() + " to \"/complete-appointment/<stringId>\" endpoint");
+        if (!userSession.isLoggedIn()){
+            logger.warn("Non logged in user from IP: " + request.getRemoteAddr() + " tried to assign a vaccine");
             return "redirect:/login";
-
+        }
+        
         if (!userSession.getUser().isAdmin()) {
             // Hacker detected! You can't modify if you're not an admin!
+            logger.warn("Non admin from IP: " + request.getRemoteAddr() + " tried to assign a vaccine");
             return "404";
         }
-
+        
         Integer id = Integer.valueOf(stringId);
         Appointment app = appointmentRepository.findById(id).get();
 
@@ -690,7 +763,7 @@ public class AppController {
         appointmentRepository.save(app);
 
         redirectAttributes.addFlashAttribute("success", "The appointment was marked as complete.");
-
+        logger.info("Appointment created successfully");
         if (app.getUser().getId() != userSession.getUser().getId()) {
             return "redirect:/profile/" + app.getUser().getId();
         }
