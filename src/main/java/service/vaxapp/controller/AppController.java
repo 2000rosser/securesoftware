@@ -333,6 +333,16 @@ public class AppController {
         user.setPhoneNumber(number);
         user.setPPS(pps);
         user.setPassword(password);
+        User user = new User();
+        user.setDateOfBirth(dateOfBirth);
+        user.setEmail(email);
+        user.setAddress(address);
+        user.setFullName(name);
+        user.setGender(gender);
+        user.setNationality(nationality);
+        user.setPhoneNumber(number);
+        user.setPPS(pps);
+        user.setPassword(password);
         if (userRepository.findByPPS(user.getPPS()) != null) {
             redirectAttributes.addFlashAttribute("error", "User with this PPS number or email already exists.");
             logger.warn("User from " + request.getRemoteAddr() + " tried to register to an account with PPS that already exists using email " + email);
