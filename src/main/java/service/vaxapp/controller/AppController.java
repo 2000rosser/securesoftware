@@ -289,13 +289,27 @@ public class AppController {
     }
 
     @RequestMapping(value = "/register", method = RequestMethod.POST, consumes = MediaType.APPLICATION_FORM_URLENCODED_VALUE)
-    public String register(User user, RedirectAttributes redirectAttributes) {
-        if (user.getDateOfBirth().isEmpty() || user.getEmail().isEmpty() || user.getAddress().isEmpty()
-                || user.getFullName().isEmpty() || user.getGender().isEmpty() || user.getNationality().isEmpty()
-                || user.getPhoneNumber().isEmpty() || user.getPPS().isEmpty() || user.getPassword().isEmpty()) {
+    public String register( 
+        @RequestParam("email") String email, @RequestParam("fullName") String name, @RequestParam("PPS") String pps, @RequestParam("password") String password, 
+        @RequestParam("phoneNumber") String number, @RequestParam("address") String address, @RequestParam("dateOfBirth") String dateOfBirth, 
+        @RequestParam("nationality") String nationality,  @RequestParam("gender") String gender, RedirectAttributes redirectAttributes) 
+    {
+        if (dateOfBirth.isEmpty() || email.isEmpty() || address.isEmpty()
+                || name.isEmpty() || gender.isEmpty() || nationality.isEmpty()
+                || number.isEmpty() || pps.isEmpty() || password.isEmpty()) {
             redirectAttributes.addFlashAttribute("error", "All fields are required!");
             return "redirect:/register";
         }
+        User user = new User();
+        user.setDateOfBirth(dateOfBirth);
+        user.setEmail(email);
+        user.setAddress(address);
+        user.setFullName(name);
+        user.setGender(gender);
+        user.setNationality(nationality);
+        user.setPhoneNumber(number);
+        user.setPPS(pps);
+        user.setPassword(password);
         if (userRepository.findByPPS(user.getPPS()) != null) {
             redirectAttributes.addFlashAttribute("error", "User with this PPS number or email already exists.");
             return "redirect:/register";
@@ -309,7 +323,6 @@ public class AppController {
             redirectAttributes.addFlashAttribute("error", "Users under 18 cannot create an account.");
             return "redirect:/register";
         }
-        String password = user.getPassword();
         if (password.length() < 8) {
             redirectAttributes.addFlashAttribute("error", "Password must be at least 8 characters long.");
             return "redirect:/register";
