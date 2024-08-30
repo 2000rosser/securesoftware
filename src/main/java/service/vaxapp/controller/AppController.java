@@ -168,7 +168,6 @@ public class AppController {
         return salt;
     }
 
-
     private static Map<String, Integer> loginAttempts = new HashMap<>();
     private static Map<String, Long> lockoutEndTime = new HashMap<>();
 
