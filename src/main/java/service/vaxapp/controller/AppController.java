@@ -269,7 +269,12 @@ public class AppController {
         mailMessage.setSubject(subject);
         mailMessage.setText(message);
     
-        mailSender.send(mailMessage);
+        try {
+            mailSender.send(mailMessage);
+        } catch (Exception e) {
+            logger.error("Error sending email. Please verify the SMTP server is running and the credentials are correct");
+            e.printStackTrace();
+        }
         logger.info("One time passcode sent to " + email);
     }
 
@@ -412,8 +417,13 @@ public class AppController {
         mailMessage.setTo(email);
         mailMessage.setSubject(subject);
         mailMessage.setText(message);
-    
-        mailSender.send(mailMessage);
+        try {
+            mailSender.send(mailMessage);
+        } catch (Exception e) {
+            logger.error("Error sending email. Please verify the SMTP server is running and the credentials are correct");
+            e.printStackTrace();
+        }
+        
         logger.info("Verification email sent to " + email);
     }
 
