@@ -16,25 +16,25 @@ public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
-    @Column(name = "user_pps", unique = true)
+    @Column(name = "user_pps", unique = true, nullable = false)
     private String PPS;
-    @Column(name = "user_password")
+    @Column(name = "user_password", nullable = false)
     private String password;
-    @Column(name = "user_salt")
+    @Column(name = "user_salt", nullable = false)
     private byte[] salt;
-    @Column(name = "full_name")
+    @Column(name = "full_name", nullable = false)
     private String fullName;
-    @Column
+    @Column(nullable = false)
     private String address;
-    @Column(name = "phone_number")
+    @Column(name = "phone_number", nullable = false)
     private String phoneNumber;
-    @Column
+    @Column(nullable = false)
     private String email;
-    @Column(name = "date_of_birth")
+    @Column(name = "date_of_birth", nullable = false)
     private String dateOfBirth;
-    @Column
+    @Column(nullable = false)
     private String nationality;
-    @Column
+    @Column(nullable = false)
     private String gender;
     @Column(nullable = false)
     @Type(type = "org.hibernate.type.NumericBooleanType")
